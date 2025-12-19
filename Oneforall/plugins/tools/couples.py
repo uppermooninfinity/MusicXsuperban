@@ -14,8 +14,8 @@ from Oneforall import app as app
 POLICE = [
     [
         InlineKeyboardButton(
-            text="ᴍʏ ᴄᴜᴛᴇ ᴅᴇᴠᴇʟᴏᴘᴇʀ  🥀",
-            url=f"https://t.me/Buyer_infinity",
+            text="ϻʏ ᴄᴜᴛᴇ ᴅᴇᴠᴇʟᴏᴘᴇʀ  🥀",
+            url=f"https://t.me/Docker_Git_Bit",
         ),
     ],
 ]
