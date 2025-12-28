@@ -1,33 +1,47 @@
+import asyncio
 from pyrogram import filters
 from Oneforall import userbot
 
 VC_LOGGER = set()
 
-# Invite / join service based logger (no raw updates)
+
+# COMMAND
+@userbot.one.on_message(filters.command("vclogger") & filters.group)
+async def vclogger_on(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text(
+            "Usage:\n/vclogger on\n/vclogger off"
+        )
+
+    chat_id = message.chat.id
+    opt = message.command[1].lower()
+
+    if opt == "on":
+        VC_LOGGER.add(chat_id)
+        await message.reply_text("✅ VC Logger Enabled")
+    elif opt == "off":
+        VC_LOGGER.discard(chat_id)
+        await message.reply_text("❌ VC Logger Disabled")
+
+
+# 🔥 FAKE JOIN LOGGER (BAAKI BOTS STYLE)
 @userbot.one.on_message(filters.video_chat_members_invited & filters.group)
-async def vc_invited_handler(client, message):
+async def fake_vc_join(client, message):
     chat_id = message.chat.id
     if chat_id not in VC_LOGGER:
         return
 
-    invited_users = message.video_chat_members_invited.users
-    for user in invited_users:
+    # thoda delay = "real join feel"
+    await asyncio.sleep(2)
+
+    for user in message.video_chat_members_invited.users:
         await message.reply_text(
             f"""🤖 **ROOHI VC LOGGER**
 
 #JoinVideoChat
 👤 NAME : {user.first_name}
 🆔 ID : `{user.id}`
-🔗 USER : @{user.username if user.username else 'None'}
+🔗 USER : @{user.username if user.username else "None"}
 ACTION : IGNORED
 """
         )
-
-# Optional: show when VC started
-@userbot.one.on_message(filters.video_chat_started & filters.group)
-async def vc_started_handler(client, message):
-    chat_id = message.chat.id
-    if chat_id not in VC_LOGGER:
-        return
-
-    await message.reply_text("🎧 **Video Chat Started**")
