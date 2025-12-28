@@ -28,7 +28,7 @@ class Userbot(Client):
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=str(config.STRING1),
-            no_updates=True,
+            no_updates=False,
             ipv6=False,
         )
 
@@ -37,7 +37,7 @@ class Userbot(Client):
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=str(config.STRING2),
-            no_updates=True,
+            no_updates=False,
             ipv6=False,
         )
         self.three = Client(
@@ -45,7 +45,7 @@ class Userbot(Client):
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=str(config.STRING3),
-            no_updates=True,
+            no_updates=False,
             ipv6=False,
         )
         self.four = Client(
@@ -53,7 +53,7 @@ class Userbot(Client):
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=str(config.STRING4),
-            no_updates=True,
+            no_updates=False,
             ipv6=False,
         )
         self.five = Client(
@@ -61,7 +61,7 @@ class Userbot(Client):
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=str(config.STRING5),
-            no_updates=True,
+            no_updates=False,
             ipv6=False,
         )
 
