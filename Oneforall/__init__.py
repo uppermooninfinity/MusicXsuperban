@@ -29,3 +29,4 @@ Telegram = TeleAPI()
 YouTube = YouTubeAPI()
 
 APP = "Raiden_Robot"  # connect music api key "Dont change it"
+import Oneforall.vclogger
