@@ -1,3 +1,4 @@
+print("🔥 WORDGAME PLUGIN LOADED 🔥")
 from Oneforall import app
 from pyrogram import filters
 import asyncio
