@@ -44,7 +44,7 @@ async def games_menu(_, query):
         text,
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("🔙 Back", callback_data="back_to_main")]
+                [InlineKeyboardButton("🔙 Back", callback_data="mbot_cb")]
             ]
         )
     )
