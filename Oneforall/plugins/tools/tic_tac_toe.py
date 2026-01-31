@@ -13,7 +13,8 @@ O = "⭕"
 
 WIN = [
     [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8]
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
 ]
 
 # ───── HELPERS ─────
@@ -34,7 +35,8 @@ def init_game(gid, user):
         "p2": None,
         "p2_name": None,
         "turn": X,
-        "mode": None
+        "mode": None,
+        "finished": False
     }
 
 def is_player(g, uid):
@@ -92,8 +94,7 @@ async def game_menu(_, m):
 
 @app.on_callback_query(filters.regex("^game_xoxo$"))
 async def game_xoxo(_, q: CallbackQuery):
-    gid = q.message.chat.id
-    if gid in games:
+    if q.message.chat.id in games:
         return await q.answer("⚠️ Game already running!", show_alert=True)
 
     kb = InlineKeyboardMarkup([
@@ -106,11 +107,9 @@ async def game_xoxo(_, q: CallbackQuery):
 
 @app.on_callback_query(filters.regex("^xoxo_friend$"))
 async def friend_mode(_, q: CallbackQuery):
-    gid = q.message.chat.id
-    init_game(gid, q.from_user)
-
+    init_game(q.message.chat.id, q.from_user)
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👥 Join Game", callback_data=f"xoxo_join:{gid}")]
+        [InlineKeyboardButton("👥 Join Game", callback_data=f"xoxo_join:{q.message.chat.id}")]
     ])
     await q.message.edit_text(
         f"❌⭕ <b>Tic Tac Toe</b>\n\n"
@@ -123,18 +122,17 @@ async def friend_mode(_, q: CallbackQuery):
 
 @app.on_callback_query(filters.regex("^xoxo_bot$"))
 async def bot_mode(_, q: CallbackQuery):
-    gid = q.message.chat.id
-    init_game(gid, q.from_user)
-    g = games[gid]
+    init_game(q.message.chat.id, q.from_user)
+    g = games[q.message.chat.id]
     g["mode"] = "bot"
     g["p2_name"] = "Bot 🤖"
 
     await q.message.edit_text(
         f"🤖 <b>Bot Mode</b>\n\n"
         f"❌ {g['p1_name']}\n"
-        f"⭕ {g['p2_name']}\n\n"
+        f"⭕ Bot 🤖\n\n"
         f"🔄 <b>Your Turn</b>",
-        reply_markup=board_kb(gid, g["board"])
+        reply_markup=board_kb(q.message.chat.id, g["board"])
     )
 
 # ───── JOIN FRIEND ─────
@@ -143,7 +141,6 @@ async def bot_mode(_, q: CallbackQuery):
 async def join_friend(_, q: CallbackQuery):
     gid = int(q.data.split(":")[1])
     g = games.get(gid)
-
     if not g or q.from_user.id == g["p1"]:
         return
 
@@ -159,7 +156,7 @@ async def join_friend(_, q: CallbackQuery):
         reply_markup=board_kb(gid, g["board"])
     )
 
-# ───── MOVE ─────
+# ───── MOVE (REMATCH SAFE) ─────
 
 @app.on_callback_query(filters.regex("^xoxo:"))
 async def move(_, q: CallbackQuery):
@@ -167,98 +164,101 @@ async def move(_, q: CallbackQuery):
     gid, pos = int(gid), int(pos)
     g = games.get(gid)
 
-    if not g or not is_player(g, q.from_user.id):
-        return await q.answer("❌ You are not part of this game")
-
+    if not g or g["finished"] or not is_player(g, q.from_user.id):
+        return
     if g["board"][pos] != EMPTY:
         return
 
-    if g["turn"] == X and q.from_user.id != g["p1"]:
-        return
-    if g["turn"] == O and g["mode"] == "friend" and q.from_user.id != g["p2"]:
-        return
+    uid = q.from_user.id
 
-    # Player move
-    g["board"][pos] = g["turn"]
-    res = check(g["board"])
+    # FRIEND MODE
+    if g["mode"] == "friend":
+        if g["turn"] == X and uid != g["p1"]:
+            return
+        if g["turn"] == O and uid != g["p2"]:
+            return
 
-    # ─── PLAYER RESULT ───
-    if res == "draw":
-        board = g["board"]
-        games.pop(gid)
-        return await q.message.edit_text(
-            "🤝 <b>It's a Draw!</b>\n\nGood game both 👏",
-            reply_markup=board_kb(gid, board)
-        )
+        g["board"][pos] = g["turn"]
+        res = check(g["board"])
 
-    if res == X:
-        await add_win(g["p1"], g["p1_name"])
-        board = g["board"]
-        games.pop(gid)
-        return await q.message.edit_text(
-            f"🎉🎉 <b>{g['p1_name']} Wins!</b> 🎉🎉",
-            reply_markup=board_kb(gid, board)
-        )
+        if res in (X, O):
+            g["finished"] = True
+            winner_id = g["p1"] if res == X else g["p2"]
+            winner_name = g["p1_name"] if res == X else g["p2_name"]
+            await add_win(winner_id, winner_name)
+            return await q.message.edit_text(
+                f"🏆 <b>{winner_name} Wins!</b>",
+                reply_markup=board_kb(gid, g["board"])
+            )
 
-    if res == O:
-        if g["mode"] == "friend":
-            await add_win(g["p2"], g["p2_name"])
-        board = g["board"]
-        games.pop(gid)
-        return await q.message.edit_text(
-            f"🎉🎉 <b>{g['p2_name']} Wins!</b> 🎉🎉",
-            reply_markup=board_kb(gid, board)
-        )
+        if res == "draw":
+            g["finished"] = True
+            return await q.message.edit_text(
+                "🤝 <b>Match Draw!</b>",
+                reply_markup=board_kb(gid, g["board"])
+            )
 
-    # ─── BOT MOVE ───
-    if g["mode"] == "bot":
+        g["turn"] = O if g["turn"] == X else X
+
+    # BOT MODE
+    else:
+        if uid != g["p1"]:
+            return
+
+        g["board"][pos] = X
+        res = check(g["board"])
+
+        if res == X:
+            g["finished"] = True
+            await add_win(g["p1"], g["p1_name"])
+            return await q.message.edit_text(
+                f"🏆 <b>{g['p1_name']} Wins!</b>",
+                reply_markup=board_kb(gid, g["board"])
+            )
+
+        if res == "draw":
+            g["finished"] = True
+            return await q.message.edit_text(
+                "🤝 <b>Match Draw!</b>",
+                reply_markup=board_kb(gid, g["board"])
+            )
+
+        # BOT MOVE
         b = bot_move(g["board"])
         g["board"][b] = O
         res = check(g["board"])
 
-        if res == "draw":
-            board = g["board"]
-            games.pop(gid)
-            return await q.message.edit_text(
-                "🤝 <b>It's a Draw!</b>\n\nBot bhi confused ho gaya 😅",
-                reply_markup=board_kb(gid, board)
-            )
-
         if res == O:
-            board = g["board"]
-            games.pop(gid)
+            g["finished"] = True
             return await q.message.edit_text(
-                "🤖 <b>Bot Wins!</b>\n\nBetter luck next time 💪",
-                reply_markup=board_kb(gid, board)
+                "🤖 <b>Bot Wins!</b>",
+                reply_markup=board_kb(gid, g["board"])
             )
 
-        g["turn"] = X
-    else:
-        g["turn"] = O if g["turn"] == X else X
-
-    # ─── CONTINUE GAME ───
     await q.message.edit_text(
-        f"❌ {g['p1_name']}\n"
-        f"⭕ {g['p2_name']}\n\n"
-        f"🔄 <b>Turn:</b> {g['turn']}",
+        f"❌ {g['p1_name']}\n⭕ {g['p2_name']}\n\n🔄 <b>Turn:</b> {g['turn']}",
         reply_markup=board_kb(gid, g["board"])
     )
 
 # ───── REMATCH ─────
 
-@app.on_callback_query(filters.regex("^xoxo_rematch"))
+@app.on_callback_query(filters.regex("^xoxo_rematch:"))
 async def rematch(_, q: CallbackQuery):
     gid = int(q.data.split(":")[1])
     g = games.get(gid)
 
-    if not g or not is_player(g, q.from_user.id):
+    if not g or q.from_user.id not in (g["p1"], g["p2"]):
         return await q.answer("❌ Not allowed", show_alert=True)
 
     g["board"] = [EMPTY]*9
     g["turn"] = X
+    g["finished"] = False
 
     await q.message.edit_text(
-        "🔁 <b>Rematch Started!</b>\n\n🔄 Turn: ❌",
+        f"🔁 <b>Rematch Started!</b>\n\n"
+        f"❌ {g['p1_name']}\n"
+        f"⭕ {g['p2_name']}\n\n"
+        f"🔄 <b>Turn: ❌</b>",
         reply_markup=board_kb(gid, g["board"])
     )
 
@@ -266,14 +266,20 @@ async def rematch(_, q: CallbackQuery):
 
 @app.on_callback_query(filters.regex("^xoxo_end"))
 async def end_game(_, q: CallbackQuery):
-    gid = int(q.data.split(":")[1])
-    g = games.get(gid)
-
-    if not g or not is_player(g, q.from_user.id):
-        return await q.answer("❌ Not allowed", show_alert=True)
-
-    games.pop(gid)
+    games.pop(int(q.data.split(":")[1]), None)
     await q.message.edit_text("🛑 <b>Game Ended</b>")
+
+# ───── FORCE END CMD ─────
+
+@app.on_message(filters.command("endxoxo"))
+async def endxoxo(_, m):
+    g = games.get(m.chat.id)
+    if not g:
+        return await m.reply("❌ No active game.")
+    if m.from_user.id not in (g["p1"], g["p2"]):
+        return await m.reply("❌ You are not part of this game.")
+    games.pop(m.chat.id)
+    await m.reply("🛑 <b>Game Force Ended</b>")
 
 # ───── LEADERBOARD ─────
 
