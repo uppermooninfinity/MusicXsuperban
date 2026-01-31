@@ -28,23 +28,32 @@ def style_text(text: str) -> str:
 
 @app.on_callback_query(filters.regex("^games_menu$"))
 async def games_menu(_, query):
+    # loading state hatane ke liye
+    await query.answer()
 
     raw_text = (
-        "🎮 Available Games\n\n"
-        "✦ Word Chain – build words using last letter\n"
-        "✦ use /join to start and auto-join by this command\n\n"
-        "✦ every plugin developed here is minutely designed and well functioned\n"
-        "✦ all credit goes to my developer 🥀 "
-        "[✦ roohi ❕](https://t.me/roohi_queen_bot)"
+        "🎮 ᴀᴠᴀɪʟᴀʙʟᴇ ɢᴀᴍᴇs\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🎯 ʜᴏᴡ ᴛᴏ ᴘʟᴀʏ\n\n"
+        "➤ ᴜsᴇ /ɢᴀᴍᴇ ᴄᴏᴍᴍᴀɴᴅ\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🕹️ ɢᴀᴍᴇs ʟɪsᴛ\n\n"
+        "① ᴛɪᴄ ᴛᴀᴄ ᴛᴏᴇ\n"
+        "➤ ᴄʟᴀssɪᴄ ② ᴘʟᴀʏᴇʀ ɢᴀᴍᴇ\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "✨ ᴍᴏʀᴇ ɢᴀᴍᴇs ᴡɪʟʟ ʙᴇ ᴀᴅᴅᴇᴅ sᴏᴏɴ\n"
+        "✨ ᴇᴀᴄʜ ɢᴀᴍᴇ ɪs ᴄᴀʀᴇғᴜʟʟʏ ᴅᴇsɪɢɴᴇᴅ\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🥀 ᴀʟʟ ᴄʀᴇᴅɪᴛs ɢᴏ ᴛᴏ ᴍʏ ᴅᴇᴠᴇʟᴏᴘᴇʀ\n"
+        "[✦ ʀᴏᴏʜɪ ❕](https://t.me/roohi_queen_bot)"
     )
 
-    text = style_text(raw_text)
-
     await query.message.edit_text(
-        text,
+        raw_text,
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("🔙 Back", callback_data="mbot_cb")]
             ]
-        )
+        ),
+        disable_web_page_preview=True
     )
