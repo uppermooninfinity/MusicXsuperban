@@ -5,7 +5,7 @@ import yt_dlp
 ytdl = yt_dlp.YoutubeDL(
     {
         "outtmpl": "downloads/%(id)s.%(ext)s",
-        "format": "bestaudio[ext=m4a]",
+        "format": "bestaudio/best"
         "geo_bypass": True,
         "nocheckcertificate": True,
         "cookiefile": "cookies.txt",  # ✅ Add this line
@@ -15,7 +15,7 @@ ytdl = yt_dlp.YoutubeDL(
 
 def download(url: str, my_hook) -> str:
     ydl_optssx = {
-        "format": "bestaudio[ext=m4a]",
+        "format": "bestaudio/best"
         "outtmpl": "downloads/%(id)s.%(ext)s",
         "geo_bypass": True,
         "nocheckcertificate": True,
