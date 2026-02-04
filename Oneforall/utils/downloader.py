@@ -1,36 +1,36 @@
 from os import path
 import yt_dlp
 
-# Global yt-dlp options (SAFE)
-ytdl_opts = {
-    "outtmpl": "downloads/%(id)s.%(ext)s",
-    "format": "bestaudio[ext=m4a]/bestaudio/best",
-    "merge_output_format": "mp3",
-    "geo_bypass": True,
-    "nocheckcertificate": True,
-    "quiet": True,
-    "no_warnings": True,
-    "cookiefile": "cookies.txt",
-}
-
-ytdl = yt_dlp.YoutubeDL(ytdl_opts)
+# Global options for YouTubeDL with cookies
+ytdl = yt_dlp.YoutubeDL(
+    {
+        "outtmpl": "downloads/%(id)s.%(ext)s",
+        "format": "bestaudio[ext=m4a]",
+        "geo_bypass": True,
+        "nocheckcertificate": True,
+        "cookiefile": "cookies.txt",  # ✅ Add this line
+    }
+)
 
 
-def download(url: str, my_hook):
+def download(url: str, my_hook) -> str:
+    ydl_optssx = {
+        "format": "bestaudio[ext=m4a]",
+        "outtmpl": "downloads/%(id)s.%(ext)s",
+        "geo_bypass": True,
+        "nocheckcertificate": True,
+        "quiet": True,
+        "no_warnings": True,
+        "cookiefile": "cookies.txt",  # ✅ Add this line too
+    }
+
     try:
-        with yt_dlp.YoutubeDL(ytdl_opts) as ydl:
-            ydl.add_progress_hook(my_hook)
-
-            info = ydl.extract_info(url, download=True)
-
-            filename = ydl.prepare_filename(info)
-
-            # ensure mp3 path
-            if not filename.endswith(".mp3"):
-                filename = path.splitext(filename)[0] + ".mp3"
-
-            return filename
-
-    except Exception as e:
-        print(f"[yt-dlp ERROR] {e}")
+        info = ytdl.extract_info(url, False)
+        x = yt_dlp.YoutubeDL(ydl_optssx)
+        x.add_progress_hook(my_hook)
+        x.download([url])
+        xyz = path.join("downloads", f"{info['id']}.{info['ext']}")
+        return xyz
+    except Exception as y_e:
+        print(y_e)
         return None
