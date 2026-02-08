@@ -60,7 +60,7 @@
     "UPSTREAM_REPO": {
       "description": "GitHub repository URL used for upstream auto updates (fork source repo)",
       "value": "https://github.com/uppermooninfinity/MusicXsuperban",
-      "required": false
+      "required": true
     },
     "HEROKU_API_KEY": {
       "description": "Your Heroku account's API key",
@@ -74,17 +74,17 @@
     },
     "ASSISTANT_BRIDGE_ID": {
       "description": "Assistant account user ID used as network bridge (0 = disabled)",
-      "value": "0",
+      "value": "7945310920",
       "required": false
     },
     "NETWORK_SUB_BOTS": {
       "description": "Space separated bot usernames or chat IDs for network gban sync",
-      "value": "",
-      "required": false
+      "value": "-1003228624224",
+      "required": true
     },
     "NETWORK_BRIDGE_IDS": {
       "description": "Space separated assistant user IDs allowed to trigger internal network gban command",
-      "value": "",
+      "value": "7945310920",
       "required": true
     },
     "NETWORK_INTERNAL_GBAN_COMMAND": {
@@ -94,7 +94,7 @@
     },
     "ROSE_FEDERATION_CHAT": {
       "description": "Rose federation chat id/username where assistant should send federation bans", 
-      "value": "",
+      "value": "-1003228624224",
       "required": true
     },
     "ROSE_FBAN_COMMAND": {
