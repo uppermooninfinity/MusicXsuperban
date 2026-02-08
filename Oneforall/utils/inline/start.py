@@ -37,7 +37,7 @@ def private_panel(_):
         [
             InlineKeyboardButton(text=_["☘️ᴏᴡɴᴇʀ"], url="https://t.me/cyber_github"),
         ],
-          [
+        [
             InlineKeyboardButton(text=_["Rᴇǫᴜᴇsᴛ sᴜᴘєʀʙᴧη 🥀"], callback_data="request_superban"),
         ],
     ]
