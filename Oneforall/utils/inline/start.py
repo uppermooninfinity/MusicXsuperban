@@ -32,13 +32,13 @@ def private_panel(_):
             InlineKeyboardButton(text=_["S_B_6"], url=config.SUPPORT_CHANNEL),
         ],
         [
-            InlineKeyboardButton(text=_["S_B_7"], callback_data="gib_source"),
+            InlineKeyboardButton(text=_["❄️ᴘʀᴏᴍᴏ"], url="https://t.me/docker_git_bit"),
         ],
         [
             InlineKeyboardButton(text=_["☘️ᴏᴡɴᴇʀ"], url="https://t.me/cyber_github"),
         ],
         [
-            InlineKeyboardButton(text=_["Rᴇǫᴜᴇsᴛ sᴜᴘєʀʙᴧη 🥀"], callback_data="request_superban"),
+            InlineKeyboardButton(text=_["Rᴇǫᴜᴇsᴛ sᴜᴘєʀʙᴧη🥀"], callback_data="request_superban"),
         ],
     ]
     return buttons
