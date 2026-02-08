@@ -16,9 +16,8 @@ from Oneforall.utils.functions import extract_user, extract_user_and_reason
 # Config
 from config import (
     SUPERBAN_CHAT_ID, 
-    STORAGE_CHANNEL_ID,
     SUPERBAN_VIDEO_URL,
-    LOGGER_ID, 
+    LOGGER_ID, # Ab sirf yahi use hoga logs ke liye
     BANNED_USERS,
     NETWORK_SUB_BOTS,
     AUTHORS
@@ -45,10 +44,9 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
     bot_hits, group_kicks = 0, 0
     
     # A. SINGLE FEDBAN/GBAN STRIKE (Anti-Spam)
-    # Assistant sirf main chat mein ek baar command bhejega jaha se saare feds linked hain
+    # Assistant sirf main superban chat mein ek baar strike maarega
     for client in userbot_module.userbot_clients:
         try:
-            # Common command strike for Fed and Global sync
             strike_cmd = f"/{'fedban' if action=='ban' else 'unfedban'} {user_id} {reason}"
             gstrike_cmd = f"/{'gban' if action=='ban' else 'ungban'} {user_id} {reason}"
             
@@ -56,7 +54,7 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
             await asyncio.sleep(0.3)
             await client.send_message(SUPERBAN_CHAT_ID, gstrike_cmd)
         except: pass
-        break # Ek client se bhej diya matlab kaam ho gaya
+        break 
 
     # B. GLOBAL DIRECT ACTION (PM + KICK)
     for client in userbot_module.userbot_clients:
@@ -68,7 +66,7 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
                     bot_hits += 1
                 except: continue
         
-        # 2. Native Group Kick (No command spam)
+        # 2. Native Group Kick (No command spam in chats)
         async for dialog in client.get_dialogs():
             if dialog.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
                 try:
@@ -99,20 +97,29 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
     )
     return report
 
-# --- 3. LOGGING & HANDLERS ---
+# --- 3. LOGGING (LOG GROUP ONLY) ---
 
 async def send_super_logs(report_text):
+    """Sirf Logger Group mein video logs bhejta hai."""
+    if not LOGGER_ID:
+        return
+    
     formatted_report = format_text(report_text)
-    for log_id in [LOGGER_ID, STORAGE_CHANNEL_ID]:
-        if not log_id: continue
-        try:
-            if SUPERBAN_VIDEO_URL:
-                await app.send_video(log_id, video=SUPERBAN_VIDEO_URL, caption=formatted_report, parse_mode=ParseMode.HTML)
-            else:
-                await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
-        except:
-            try: await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
-            except: pass
+    try:
+        if SUPERBAN_VIDEO_URL:
+            await app.send_video(
+                LOGGER_ID, 
+                video=SUPERBAN_VIDEO_URL, 
+                caption=formatted_report, 
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            await app.send_message(LOGGER_ID, formatted_report, parse_mode=ParseMode.HTML)
+    except:
+        try: await app.send_message(LOGGER_ID, formatted_report, parse_mode=ParseMode.HTML)
+        except: pass
+
+# --- 4. HANDLERS ---
 
 @app.on_message(filters.command(["superban", "unsuperban"]) & ~BANNED_USERS)
 async def superban_handler(_, message: Message):
@@ -126,7 +133,7 @@ async def superban_handler(_, message: Message):
         await m.edit_text(format_text(report), parse_mode=ParseMode.HTML)
         await send_super_logs(report)
     else:
-        # Request Management
+        # Request system
         global next_reason_id
         rid = next_reason_id
         reason_storage[rid] = reason or "ɴᴏ ʀᴇᴀsᴏɴ"
@@ -139,9 +146,11 @@ async def superban_handler(_, message: Message):
 async def on_approve_cb(_, query: CallbackQuery):
     if query.from_user.id not in SUDOERS and query.from_user.id not in AUTHORS:
         return await query.answer("ᴀᴜǫᴀᴛ ᴍᴇɪɴ!", show_alert=True)
+    
     action, user_id, encoded_rid = query.matches[0].groups()
     rid = int(base64.b64decode(encoded_rid).decode())
     await query.message.edit_text(format_text("⚡ ᴀᴘᴘʀᴏᴠᴇᴅ. ᴇxᴇᴄᴜᴛɪɴɢ..."))
+    
     report = await execute_super_action(int(user_id), reason_storage.get(rid, "ᴀᴘᴘʀᴏᴠᴇᴅ"), query.from_user.first_name, query.from_user.id, action="ban" if action == "superban" else "unban")
     await query.message.edit_text(format_text(report), parse_mode=ParseMode.HTML)
     await send_super_logs(report)
