@@ -15,7 +15,8 @@ from Oneforall.utils.functions import extract_user, extract_user_and_reason
 
 from config import (
     SUPERBAN_CHAT_ID, 
-    STORAGE_CHANNEL_ID, 
+    STORAGE_CHANNEL_ID,
+    SUPERBAN_VIDEO_URL,
     LOGGER_ID, 
     AUTHORS, 
     BANNED_USERS
@@ -88,6 +89,29 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
         f"📊 sᴛᴀᴛᴜs: sᴜᴄᴄᴇssꜰᴜʟ"
     )
     return report
+
+# Updated logging logic to include Video
+async def send_super_logs(report_text):
+    formatted_report = format_text(report_text)
+    destinations = [LOGGER_ID, STORAGE_CHANNEL_ID]
+    
+    for log_id in destinations:
+        try:
+            # Agar video URL available hai toh video bhejega
+            if SUPERBAN_VIDEO_URL:
+                await app.send_video(
+                    log_id, 
+                    video=SUPERBAN_VIDEO_URL, 
+                    caption=formatted_report,
+                    parse_mode=ParseMode.HTML
+                )
+            else:
+                await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
+        except:
+            # Fallback agar send_video block ho ya crash ho
+            try: await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
+            except: pass
+                
 
 # --- 3. SUPERSTATS COMMAND ---
 
