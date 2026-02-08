@@ -104,9 +104,9 @@ async def start_pm(client, message: Message, _):
     if await is_on_off(2):
         await app.send_message(
             config.LOGGER_ID,
-            f"{message.from_user.mention} started the bot\n\n"
-            f"<b>ID:</b> <code>{message.from_user.id}</code>\n"
-            f"<b>Username:</b> @{message.from_user.username}",
+            f"<blockquote><i><u>{message.from_user.mention} started the bot\n\n</u></i></blockquote>"
+            f"<blockquote><i><u>ID: <code>{message.from_user.id}</code>\n</u></i></blockquote>"
+            f"<blockquote><i><u>Username: @{message.from_user.username}</u></i></blockquote>",
         )
 
 
@@ -178,7 +178,7 @@ async def welcome_handler(client, message: Message):
             # OWNER WELCOME
             if member.id == config.OWNER_ID:
                 msg = await message.reply_text(
-                    f"👑 <b>BOT OWNER JOINED</b>\n\n{member.mention}"
+                    f"<blockquote><i><u>👑 BOT OWNER JOINED\n\n{member.mention}</u></i></blockquote>"
                 )
                 await asyncio.sleep(20)
                 await msg.delete()
@@ -191,7 +191,7 @@ async def welcome_handler(client, message: Message):
 
             if is_sudo:
                 msg = await message.reply_text(
-                    f"⚡ <b>SUDO USER JOINED</b>\n\n{member.mention}"
+                    f"<blockquote><i><u>⚡ SUDO USER JOINED\n\n{member.mention}</u></i></blockquote>"
                 )
                 await asyncio.sleep(20)
                 await msg.delete()
