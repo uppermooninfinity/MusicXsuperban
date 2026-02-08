@@ -96,6 +96,16 @@ NETWORK_INTERNAL_GBAN_COMMAND = os.getenv("NETWORK_INTERNAL_GBAN_COMMAND", "/xgb
 ROSE_FEDERATION_CHAT = os.getenv("ROSE_FEDERATION_CHAT", "")
 ROSE_FBAN_COMMAND = os.getenv("ROSE_FBAN_COMMAND", "/fban")
 
+SUPERBAN_CHANNEL_ID = int(os.getenv("SUPERBAN_CHANNEL_ID", "-1002341399451")) 
+# Technical logs ki jagah
+LOGGER_ID = int(os.getenv("LOGGER_ID", "-1002869205475"))
+# Final banned cards archive karne ki jagah
+STORAGE_CHANNEL_ID = int(os.getenv("STORAGE_CHANNEL_ID", "-1002447915591"))
+
+
+# Superban Video (Catbox.moe link)
+SUPERBAN_VIDEO_URL = os.getenv("SUPERBAN_VIDEO_URL", "https://files.catbox.moe/ys1wfm.mp4")
+
 
 BANNED_USERS = filters.user()
 TEMP_DB_FOLDER = "tempdb"
