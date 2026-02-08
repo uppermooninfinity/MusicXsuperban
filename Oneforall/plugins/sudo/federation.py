@@ -16,7 +16,7 @@ from Oneforall.utils.functions import extract_user, extract_user_and_reason
 from config import (
     SUPERBAN_CHAT_ID, 
     STORAGE_CHANNEL_ID, 
-    LOGGER_ID, # Make sure this is in your config
+    LOGGER_ID, 
     AUTHORS, 
     BANNED_USERS
 )
@@ -37,16 +37,18 @@ def format_text(text):
     return f"<blockquote><b><i><u>{sc_text}</u></i></b></blockquote>"
 
 async def run_animation(msg: Message):
-    steps = ["⚙️ ɪɴɪᴛɪᴀʟɪᴢɪɴɢ...", "📡 sʏɴᴄɪɴɢ ʙᴏᴛ ɴᴇᴛᴡᴏʀᴋ...", "🛰️ ᴄᴏɴɴᴇᴄᴛɪɴɢ ᴛᴏ ᴍᴜsɪᴄ ᴄᴏʀᴇ...", "⚔️ ᴅᴇᴘʟᴏʏɪɴɢ ɢʟᴏʙᴀʟ ʙᴀɴ..."]
+    steps = ["⚙️ ɪɴɪᴛɪᴀʟɪᴢɪɴɢ...", "📡 sʏɴᴄɪɴɢ ʙᴏᴛ ɴᴇᴛᴡᴏʀᴋ...", "🛰️ ᴄᴏɴɴᴇᴄᴛɪɴɢ ᴛᴏ ᴍᴜsɪᴄ ᴄᴏʀᴇ...", "⚔️ ᴅᴇᴘʟᴏʏɪɴɢ ɢʟᴏʙᴀʟ ᴀᴄᴛɪᴏɴ..."]
     for step in steps:
-        await msg.edit_text(format_text(step), parse_mode=ParseMode.HTML)
-        await asyncio.sleep(0.7)
+        try:
+            await msg.edit_text(format_text(step), parse_mode=ParseMode.HTML)
+            await asyncio.sleep(0.7)
+        except: pass
 
 # --- 2. CORE EXECUTION LOGIC ---
 
 async def execute_super_action(user_id, reason, approver, approver_id, action="ban"):
     start_time = datetime.utcnow()
-    m_gbans, r_bridge, feds_hit = 0, 0, 0
+    m_gbans, r_bridge = 0, 0
     is_sudo = approver_id in SUDOERS or approver_id in AUTHORS
 
     for client in userbot_module.userbot_clients:
@@ -58,7 +60,7 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
                     m_gbans += 1
                 except: continue
         
-        # Rose & Fed Bridge
+        # Rose & Global Bridge
         async for dialog in client.get_dialogs():
             if dialog.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
                 try:
@@ -75,7 +77,6 @@ async def execute_super_action(user_id, reason, approver, approver_id, action="b
 
     time_taken = get_readable_time(datetime.utcnow() - start_time)
     
-    # Detailed Stats Template
     report = (
         f"🚀 sᴜᴘᴇʀʙᴀɴ {action.upper()} ᴄᴏᴍᴘʟᴇᴛᴇ\n\n"
         f"👤 ᴛᴀʀɢᴇᴛ: `{user_id}`\n"
@@ -96,24 +97,28 @@ async def superstats_handler(_, message: Message):
     if not user_id: return await message.reply_text(format_text("ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ ᴏʀ ɢɪᴠᴇ ɪᴅ."), parse_mode=ParseMode.HTML)
     
     ban_info = await fedbansdb.find_one({"user_id": user_id})
-    try: user = await app.get_users(user_id)
-    except: user = None
+    try: user = await app.get_users(user_id); name = user.first_name
+    except: name = "ᴜɴᴋɴᴏᴡɴ"
     
     if not ban_info:
         return await message.reply_text(format_text(f"✅ ᴜsᴇʀ `{user_id}` ɪs ᴄʟᴇᴀɴ ɪɴ ᴏᴜʀ ᴅᴀᴛᴀʙᴀsᴇ."), parse_mode=ParseMode.HTML)
     
+    # Date formatting fix
+    ban_time = ban_info.get('time')
+    date_str = ban_time.strftime('%Y-%m-%d') if isinstance(ban_time, datetime) else "Unknown"
+
     stats = (
         f"📊 sᴜᴘᴇʀʙᴀɴ ɪɴᴛᴇʟ\n\n"
-        f"👤 ɴᴀᴍᴇ: {user.first_name if user else 'ᴜɴᴋɴᴏᴡɴ'}\n"
+        f"👤 ɴᴀᴍᴇ: {name}\n"
         f"🆔 ɪᴅ: `{user_id}`\n"
         f"📝 ʀᴇᴀsᴏɴ: {ban_info.get('reason')}\n"
         f"🛡️ ʙᴀɴɴᴇᴅ ʙʏ: {ban_info.get('by')}\n"
-        f"📅 ᴅᴀᴛᴇ: {ban_info.get('time').strftime('%Y-%m-%d')}\n"
+        f"📅 ᴅᴀᴛᴇ: {date_str}\n"
         f"🌐 ᴛʏᴘᴇ: ɢʟᴏʙᴀʟ ᴇɴꜰᴏʀᴄᴇᴍᴇɴᴛ"
     )
     await message.reply_text(format_text(stats), parse_mode=ParseMode.HTML)
 
-# --- 4. COMMAND HANDLER ---
+# --- 4. MAIN COMMAND HANDLER ---
 
 @app.on_message(filters.command(["superban", "unsuperban"]) & ~BANNED_USERS)
 async def main_cmd_handler(_, message: Message):
@@ -128,7 +133,6 @@ async def main_cmd_handler(_, message: Message):
         await run_animation(m)
         report = await execute_super_action(user_id, reason or "ɴᴏ ʀᴇᴀsᴏɴ", message.from_user.first_name, message.from_user.id, action="ban" if cmd == "superban" else "unban")
         
-        # Log to all channels
         formatted_report = format_text(report)
         await m.edit_text(formatted_report, parse_mode=ParseMode.HTML)
         for log_id in [LOGGER_ID, STORAGE_CHANNEL_ID]:
@@ -143,16 +147,13 @@ async def main_cmd_handler(_, message: Message):
 
         req_text = format_text(f"🚨 {cmd.upper()} ʀᴇǫᴜᴇsᴛ\n\nᴜsᴇʀ: `{user_id}`\nʙʏ: {message.from_user.first_name}\nʀᴇᴀsᴏɴ: {reason_storage[rid]}")
         
-        # Request in Superban Chat
         await app.send_message(
             SUPERBAN_CHAT_ID, req_text,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ ᴀᴘᴘʀᴏᴠᴇ", callback_data=f"sb_{cmd}_{user_id}_{encoded_rid}")] शुभकामनाएँ]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ ᴀᴘᴘʀᴏᴠᴇ", callback_data=f"sb_{cmd}_{user_id}_{encoded_rid}")]]),
             parse_mode=ParseMode.HTML
         )
-        # Log request in Logger ID
         try: await app.send_message(LOGGER_ID, req_text, parse_mode=ParseMode.HTML)
         except: pass
-        
         await message.reply_text(format_text("ʀᴇǫᴜᴇsᴛ sᴇɴᴛ ᴛᴏ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴀɴᴅ ʟᴏɢɢᴇᴅ."), parse_mode=ParseMode.HTML)
 
 # --- 5. CALLBACK HANDLER ---
@@ -172,8 +173,7 @@ async def on_approve_cb(_, query: CallbackQuery):
     formatted_report = format_text(report)
     await query.message.edit_text(formatted_report, parse_mode=ParseMode.HTML)
     
-    # Final logging to all 3 places
     for log_id in [LOGGER_ID, STORAGE_CHANNEL_ID]:
         try: await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
         except: pass
-    
+        
