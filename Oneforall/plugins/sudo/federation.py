@@ -1,271 +1,179 @@
 import asyncio
+import base64
 from datetime import datetime
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, Message
+from pyrogram.enums import ParseMode, ChatType
 
-from pyrogram import filters
-from pyrogram.enums import ChatMemberStatus, ChatType
-from pyrogram.errors import FloodWait
-from pyrogram.types import Message
-
+# Core Imports
 from Oneforall import app
 from Oneforall.core.mongo import mongodb
+import Oneforall.core.userbot as userbot_module
+from Oneforall.core.readable_time import get_readable_time
 from Oneforall.misc import SUDOERS
 from Oneforall.utils.functions import extract_user, extract_user_and_reason
-from config import BANNED_USERS
 
+from config import (
+    SUPERBAN_CHAT_ID, 
+    STORAGE_CHANNEL_ID, 
+    LOGGER_ID, # Make sure this is in your config
+    AUTHORS, 
+    BANNED_USERS
+)
 
-__MODULE__ = "Fᴇᴅᴇʀᴀᴛɪᴏɴ"
-__HELP__ = """
-/newfed <name> - Create a new federation.
-/addfed <fed_id> - Connect current group to a federation.
-/chatfed - Show linked federation details for the current chat.
-/fpromote | /fptomote <user> - Promote a user as federation admin.
-/superban <user> [reason] - Ban a user from all chats linked to federation.
-/unsuperban <user> - Unban a user in all federation chats.
-/fedbanlist - List federation banned users.
-"""
-
+# Database
 fedsdb = mongodb.federations
 fedbansdb = mongodb.federation_bans
 
+MUSIC_BOTS = ["snowy_x_musicbot", "superban_probot", "roohi_queen_bot"]
+reason_storage = {}
+next_reason_id = 1
 
-async def get_fed_by_chat(chat_id: int):
-    return await fedsdb.find_one({"chats": chat_id})
+# --- 1. PREMIUM FORMATTING & ANIMATIONS ---
 
+def format_text(text):
+    mapping = {'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ꜰ', 'g': 'ɢ', 'h': 'ʜ', 'i': 'ɪ', 'j': 'ᴊ', 'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 'o': 'ᴏ', 'p': 'ᴘ', 'q': 'ǫ', 'r': 'ʀ', 's': 's', 't': 'ᴛ', 'u': 'ᴜ', 'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ', 'z': 'ᴢ', '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉', ':': ':', '-': '-', '.': '.'}
+    sc_text = "".join(mapping.get(c.lower(), c) for c in str(text))
+    return f"<blockquote><b><i><u>{sc_text}</u></i></b></blockquote>"
 
-async def is_chat_admin(chat_id: int, user_id: int) -> bool:
-    member = await app.get_chat_member(chat_id, user_id)
-    return member.status in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR]
+async def run_animation(msg: Message):
+    steps = ["⚙️ ɪɴɪᴛɪᴀʟɪᴢɪɴɢ...", "📡 sʏɴᴄɪɴɢ ʙᴏᴛ ɴᴇᴛᴡᴏʀᴋ...", "🛰️ ᴄᴏɴɴᴇᴄᴛɪɴɢ ᴛᴏ ᴍᴜsɪᴄ ᴄᴏʀᴇ...", "⚔️ ᴅᴇᴘʟᴏʏɪɴɢ ɢʟᴏʙᴀʟ ʙᴀɴ..."]
+    for step in steps:
+        await msg.edit_text(format_text(step), parse_mode=ParseMode.HTML)
+        await asyncio.sleep(0.7)
 
+# --- 2. CORE EXECUTION LOGIC ---
 
-async def can_manage_fed(fed: dict, user_id: int) -> bool:
-    if user_id in SUDOERS:
-        return True
-    if user_id == fed.get("owner_id"):
-        return True
-    return user_id in fed.get("admins", [])
+async def execute_super_action(user_id, reason, approver, approver_id, action="ban"):
+    start_time = datetime.utcnow()
+    m_gbans, r_bridge, feds_hit = 0, 0, 0
+    is_sudo = approver_id in SUDOERS or approver_id in AUTHORS
 
+    for client in userbot_module.userbot_clients:
+        # Music Bot Sync
+        if is_sudo:
+            for bot in MUSIC_BOTS:
+                try:
+                    await client.send_message(bot, f"/{'gban' if action=='ban' else 'ungban'} {user_id} {reason}")
+                    m_gbans += 1
+                except: continue
+        
+        # Rose & Fed Bridge
+        async for dialog in client.get_dialogs():
+            if dialog.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+                try:
+                    await client.send_message(dialog.chat.id, f"/{'fedban' if action=='ban' else 'unfedban'} {user_id} {reason}")
+                    if action == "ban": await client.ban_chat_member(dialog.chat.id, user_id)
+                    else: await client.unban_chat_member(dialog.chat.id, user_id)
+                    r_bridge += 1
+                except: continue
+    
+    if action == "ban":
+        await fedbansdb.update_one({"user_id": user_id}, {"$set": {"reason": reason, "by": approver, "by_id": approver_id, "time": datetime.utcnow()}}, upsert=True)
+    else:
+        await fedbansdb.delete_one({"user_id": user_id})
 
-@app.on_message(filters.command("newfed") & ~BANNED_USERS)
-async def newfed_command(_, message: Message):
-    if len(message.command) < 2:
-        return await message.reply_text("Usage: /newfed <federation name>")
-
-    fed_name = message.text.split(None, 1)[1].strip()
-    fed_id = f"fed_{message.from_user.id}_{int(datetime.utcnow().timestamp())}"
-
-    await fedsdb.insert_one(
-        {
-            "fed_id": fed_id,
-            "name": fed_name,
-            "owner_id": message.from_user.id,
-            "admins": [],
-            "chats": [],
-            "created_at": datetime.utcnow(),
-        }
+    time_taken = get_readable_time(datetime.utcnow() - start_time)
+    
+    # Detailed Stats Template
+    report = (
+        f"🚀 sᴜᴘᴇʀʙᴀɴ {action.upper()} ᴄᴏᴍᴘʟᴇᴛᴇ\n\n"
+        f"👤 ᴛᴀʀɢᴇᴛ: `{user_id}`\n"
+        f"🛡️ ᴀᴅᴍɪɴ: {approver}\n"
+        f"📝 ʀᴇᴀsᴏɴ: {reason}\n"
+        f"🏘️ ᴄʜᴀᴛs ᴀꜰꜰᴇᴄᴛᴇᴅ: {r_bridge}\n"
+        f"🎵 ᴍᴜsɪᴄ ʙᴏᴛs sʏɴᴄ: {m_gbans}\n"
+        f"🕒 ᴛɪᴍᴇ ᴛᴀᴋᴇɴ: {time_taken}\n"
+        f"📊 sᴛᴀᴛᴜs: sᴜᴄᴄᴇssꜰᴜʟ"
     )
+    return report
 
-    await message.reply_text(
-        f"Federation created.\n**Name:** {fed_name}\n**Fed ID:** `{fed_id}`\nUse /addfed {fed_id} in a group to connect it."
-    )
+# --- 3. SUPERSTATS COMMAND ---
 
-
-@app.on_message(filters.command("addfed") & ~filters.private & ~BANNED_USERS)
-async def addfed_command(_, message: Message):
-    if len(message.command) < 2:
-        return await message.reply_text("Usage: /addfed <fed_id>")
-
-    if not await is_chat_admin(message.chat.id, message.from_user.id):
-        return await message.reply_text("You must be a chat admin to connect a federation.")
-
-    fed_id = message.command[1].strip()
-    fed = await fedsdb.find_one({"fed_id": fed_id})
-    if not fed:
-        return await message.reply_text("Federation not found.")
-
-    if not await can_manage_fed(fed, message.from_user.id):
-        return await message.reply_text("You are not allowed to manage this federation.")
-
-    if message.chat.id in fed.get("chats", []):
-        return await message.reply_text("This chat is already connected to this federation.")
-
-    await fedsdb.update_one({"fed_id": fed_id}, {"$addToSet": {"chats": message.chat.id}})
-
-    existing_bans = fedbansdb.find({"fed_id": fed_id})
-    applied = 0
-    async for ban in existing_bans:
-        try:
-            await app.ban_chat_member(message.chat.id, ban["user_id"])
-            applied += 1
-        except Exception:
-            continue
-
-    await message.reply_text(
-        f"Connected this chat to federation **{fed['name']}** (`{fed_id}`).\nApplied {applied} existing superbans."
-    )
-
-
-@app.on_message(filters.command("chatfed") & ~filters.private & ~BANNED_USERS)
-async def chatfed_command(_, message: Message):
-    fed = await get_fed_by_chat(message.chat.id)
-    if not fed:
-        return await message.reply_text("This chat is not connected to any federation.")
-
-    owner = fed.get("owner_id")
-    admins = fed.get("admins", [])
-    chats = fed.get("chats", [])
-    bans_count = await fedbansdb.count_documents({"fed_id": fed["fed_id"]})
-
-    await message.reply_text(
-        "**Federation details**\n"
-        f"Name: {fed['name']}\n"
-        f"Fed ID: `{fed['fed_id']}`\n"
-        f"Owner ID: `{owner}`\n"
-        f"Fed admins: `{len(admins)}`\n"
-        f"Connected chats: `{len(chats)}`\n"
-        f"Superbanned users: `{bans_count}`"
-    )
-
-
-@app.on_message(filters.command(["fpromote", "fptomote"]) & ~filters.private & ~BANNED_USERS)
-async def fpromote_command(_, message: Message):
-    fed = await get_fed_by_chat(message.chat.id)
-    if not fed:
-        return await message.reply_text("This chat is not connected to any federation.")
-
-    if message.from_user.id not in SUDOERS and message.from_user.id != fed.get("owner_id"):
-        return await message.reply_text("Only federation owner can promote federation admins.")
-
+@app.on_message(filters.command("superstats") & ~BANNED_USERS)
+async def superstats_handler(_, message: Message):
     user_id = await extract_user(message)
-    if not user_id:
-        return await message.reply_text("Reply to a user or pass a valid user ID/username.")
+    if not user_id: return await message.reply_text(format_text("ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ ᴏʀ ɢɪᴠᴇ ɪᴅ."), parse_mode=ParseMode.HTML)
+    
+    ban_info = await fedbansdb.find_one({"user_id": user_id})
+    try: user = await app.get_users(user_id)
+    except: user = None
+    
+    if not ban_info:
+        return await message.reply_text(format_text(f"✅ ᴜsᴇʀ `{user_id}` ɪs ᴄʟᴇᴀɴ ɪɴ ᴏᴜʀ ᴅᴀᴛᴀʙᴀsᴇ."), parse_mode=ParseMode.HTML)
+    
+    stats = (
+        f"📊 sᴜᴘᴇʀʙᴀɴ ɪɴᴛᴇʟ\n\n"
+        f"👤 ɴᴀᴍᴇ: {user.first_name if user else 'ᴜɴᴋɴᴏᴡɴ'}\n"
+        f"🆔 ɪᴅ: `{user_id}`\n"
+        f"📝 ʀᴇᴀsᴏɴ: {ban_info.get('reason')}\n"
+        f"🛡️ ʙᴀɴɴᴇᴅ ʙʏ: {ban_info.get('by')}\n"
+        f"📅 ᴅᴀᴛᴇ: {ban_info.get('time').strftime('%Y-%m-%d')}\n"
+        f"🌐 ᴛʏᴘᴇ: ɢʟᴏʙᴀʟ ᴇɴꜰᴏʀᴄᴇᴍᴇɴᴛ"
+    )
+    await message.reply_text(format_text(stats), parse_mode=ParseMode.HTML)
 
-    if user_id in fed.get("admins", []):
-        return await message.reply_text("User is already a federation admin.")
+# --- 4. COMMAND HANDLER ---
 
-    await fedsdb.update_one({"fed_id": fed["fed_id"]}, {"$addToSet": {"admins": user_id}})
-    await message.reply_text(f"Promoted `{user_id}` as federation admin in `{fed['fed_id']}`.")
-
-
-@app.on_message(filters.command(["superban", "fedban"]) & ~filters.private & ~BANNED_USERS)
-async def superban_command(_, message: Message):
-    fed = await get_fed_by_chat(message.chat.id)
-    if not fed:
-        return await message.reply_text("This chat is not connected to any federation.")
-
-    if not await can_manage_fed(fed, message.from_user.id):
-        return await message.reply_text("You need federation admin rights to use /superban.")
-
+@app.on_message(filters.command(["superban", "unsuperban"]) & ~BANNED_USERS)
+async def main_cmd_handler(_, message: Message):
+    cmd = message.command[0].lower()
     user_id, reason = await extract_user_and_reason(message)
-    if not user_id:
-        return await message.reply_text("Reply to a user or give a valid user id/username.")
-    if user_id in SUDOERS or user_id == app.id:
-        return await message.reply_text("Cannot superban this user.")
+    if not user_id: return await message.reply_text(format_text("ᴘʀᴏᴠɪᴅᴇ ᴀ ᴛᴀʀɢᴇᴛ ᴜsᴇʀ."), parse_mode=ParseMode.HTML)
 
-    already = await fedbansdb.find_one({"fed_id": fed["fed_id"], "user_id": user_id})
-    if already:
-        return await message.reply_text("This user is already superbanned in this federation.")
+    is_sudo = message.from_user.id in SUDOERS or message.from_user.id in AUTHORS
+    
+    if is_sudo:
+        m = await message.reply_text(format_text("⚙️ ɪɴɪᴛɪᴀʟɪᴢɪɴɢ..."), parse_mode=ParseMode.HTML)
+        await run_animation(m)
+        report = await execute_super_action(user_id, reason or "ɴᴏ ʀᴇᴀsᴏɴ", message.from_user.first_name, message.from_user.id, action="ban" if cmd == "superban" else "unban")
+        
+        # Log to all channels
+        formatted_report = format_text(report)
+        await m.edit_text(formatted_report, parse_mode=ParseMode.HTML)
+        for log_id in [LOGGER_ID, STORAGE_CHANNEL_ID]:
+            try: await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
+            except: pass
+    else:
+        global next_reason_id
+        rid = next_reason_id
+        reason_storage[rid] = reason or "ɴᴏ ʀᴇᴀsᴏɴ"
+        next_reason_id += 1
+        encoded_rid = base64.b64encode(str(rid).encode()).decode()
 
-    await fedbansdb.insert_one(
-        {
-            "fed_id": fed["fed_id"],
-            "user_id": user_id,
-            "reason": reason or "No reason provided",
-            "banned_by": message.from_user.id,
-            "banned_at": datetime.utcnow(),
-        }
-    )
-
-    count = 0
-    for chat_id in fed.get("chats", []):
-        try:
-            await app.ban_chat_member(chat_id, user_id)
-            count += 1
-        except FloodWait as fw:
-            await asyncio.sleep(int(fw.value))
-        except Exception:
-            continue
-
-    await message.reply_text(
-        f"Superbanned `{user_id}` in federation `{fed['fed_id']}`.\nAffected chats: `{count}`\nReason: {reason or 'No reason provided'}"
-    )
-
-
-@app.on_message(filters.command(["unsuperban", "unfedban"]) & ~filters.private & ~BANNED_USERS)
-async def unsuperban_command(_, message: Message):
-    fed = await get_fed_by_chat(message.chat.id)
-    if not fed:
-        return await message.reply_text("This chat is not connected to any federation.")
-
-    if not await can_manage_fed(fed, message.from_user.id):
-        return await message.reply_text("You need federation admin rights to use /unsuperban.")
-
-    user_id = await extract_user(message)
-    if not user_id:
-        return await message.reply_text("Reply to a user or pass a valid user ID/username.")
-
-    exists = await fedbansdb.find_one({"fed_id": fed["fed_id"], "user_id": user_id})
-    if not exists:
-        return await message.reply_text("User is not superbanned in this federation.")
-
-    await fedbansdb.delete_one({"fed_id": fed["fed_id"], "user_id": user_id})
-
-    count = 0
-    for chat_id in fed.get("chats", []):
-        try:
-            await app.unban_chat_member(chat_id, user_id)
-            count += 1
-        except FloodWait as fw:
-            await asyncio.sleep(int(fw.value))
-        except Exception:
-            continue
-
-    await message.reply_text(f"Removed superban for `{user_id}`. Chats updated: `{count}`")
-
-
-@app.on_message(filters.command("fedbanlist") & ~filters.private & ~BANNED_USERS)
-async def fedbanlist_command(_, message: Message):
-    fed = await get_fed_by_chat(message.chat.id)
-    if not fed:
-        return await message.reply_text("This chat is not connected to any federation.")
-
-    cursor = fedbansdb.find({"fed_id": fed["fed_id"]})
-    lines = [f"**Superban list for {fed['name']}**"]
-    count = 0
-    async for entry in cursor:
-        count += 1
-        lines.append(f"{count}. `{entry['user_id']}` - {entry.get('reason', 'No reason')}")
-        if count >= 50:
-            break
-
-    if count == 0:
-        return await message.reply_text("No users are superbanned in this federation.")
-
-    await message.reply_text("\n".join(lines))
-
-
-@app.on_message(filters.group & ~filters.service & ~BANNED_USERS, group=8)
-async def enforce_fed_superban(_, message: Message):
-    if message.chat.type not in [ChatType.SUPERGROUP, ChatType.GROUP]:
-        return
-    if not message.from_user:
-        return
-
-    fed = await get_fed_by_chat(message.chat.id)
-    if not fed:
-        return
-
-    user_id = message.from_user.id
-    if user_id in SUDOERS:
-        return
-
-    banned = await fedbansdb.find_one({"fed_id": fed["fed_id"], "user_id": user_id})
-    if not banned:
-        return
-
-    try:
-        await app.ban_chat_member(message.chat.id, user_id)
-        await message.reply_text(
-            f"User `{user_id}` is federation-superbanned and was removed."
+        req_text = format_text(f"🚨 {cmd.upper()} ʀᴇǫᴜᴇsᴛ\n\nᴜsᴇʀ: `{user_id}`\nʙʏ: {message.from_user.first_name}\nʀᴇᴀsᴏɴ: {reason_storage[rid]}")
+        
+        # Request in Superban Chat
+        await app.send_message(
+            SUPERBAN_CHAT_ID, req_text,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ ᴀᴘᴘʀᴏᴠᴇ", callback_data=f"sb_{cmd}_{user_id}_{encoded_rid}")] शुभकामनाएँ]),
+            parse_mode=ParseMode.HTML
         )
-    except Exception:
-        return
+        # Log request in Logger ID
+        try: await app.send_message(LOGGER_ID, req_text, parse_mode=ParseMode.HTML)
+        except: pass
+        
+        await message.reply_text(format_text("ʀᴇǫᴜᴇsᴛ sᴇɴᴛ ᴛᴏ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴀɴᴅ ʟᴏɢɢᴇᴅ."), parse_mode=ParseMode.HTML)
+
+# --- 5. CALLBACK HANDLER ---
+
+@app.on_callback_query(filters.regex(r'^sb_(superban|unsuperban)_(\d+)_(.+)$'))
+async def on_approve_cb(_, query: CallbackQuery):
+    if query.from_user.id not in SUDOERS and query.from_user.id not in AUTHORS:
+        return await query.answer("ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ", show_alert=True)
+    
+    action, user_id, encoded_rid = query.matches[0].groups()
+    rid = int(base64.b64decode(encoded_rid).decode())
+    reason = reason_storage.get(rid, "ᴀᴘᴘʀᴏᴠᴇᴅ ʙʏ sᴜᴅᴏ")
+
+    await query.message.edit_text(format_text("⚡ ᴀᴘᴘʀᴏᴠᴇᴅ. ᴇxᴇᴄᴜᴛɪɴɢ ᴘʀᴏᴛᴏᴄᴏʟ..."), parse_mode=ParseMode.HTML)
+    report = await execute_super_action(int(user_id), reason, query.from_user.first_name, query.from_user.id, action="ban" if action == "superban" else "unban")
+    
+    formatted_report = format_text(report)
+    await query.message.edit_text(formatted_report, parse_mode=ParseMode.HTML)
+    
+    # Final logging to all 3 places
+    for log_id in [LOGGER_ID, STORAGE_CHANNEL_ID]:
+        try: await app.send_message(log_id, formatted_report, parse_mode=ParseMode.HTML)
+        except: pass
+    
