@@ -71,6 +71,36 @@
       "description": "Your heroku app name",
       "value": "",
       "required": false
+    },
+    "ASSISTANT_BRIDGE_ID": {
+      "description": "Assistant account user ID used as network bridge (0 = disabled)",
+      "value": "0",
+      "required": false
+    },
+    "NETWORK_SUB_BOTS": {
+      "description": "Space separated bot usernames or chat IDs for network gban sync",
+      "value": "",
+      "required": false
+    },
+    "NETWORK_BRIDGE_IDS": {
+      "description": "Space separated assistant user IDs allowed to trigger internal network gban command",
+      "value": "",
+      "required": true
+    },
+    "NETWORK_INTERNAL_GBAN_COMMAND": {
+      "description": "Internal command used for cross-bot gban sync",
+      "value": "/gban",
+      "required": true
+    },
+    "ROSE_FEDERATION_CHAT": {
+      "description": "Rose federation chat id/username where assistant should send federation bans", 
+      "value": "",
+      "required": true
+    },
+    "ROSE_FBAN_COMMAND": {
+      "description": "Federation ban command for Rose or compatible federation bot",
+      "value": "/fban",
+      "required": true
     }
   },
   "buildpacks": [
