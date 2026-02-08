@@ -99,8 +99,6 @@ ROSE_FBAN_COMMAND = os.getenv("ROSE_FBAN_COMMAND", "/fban")
 SUPERBAN_CHAT_ID = int(os.getenv("SUPERBAN_CHAT_ID", "-1003228624224")) 
 # Technical logs ki jagah
 LOGGER_ID = int(os.getenv("LOGGER_ID", "-1003228624224"))
-# Final banned cards archive karne ki jagah
-STORAGE_CHANNEL_ID = int(os.getenv("STORAGE_CHANNEL_ID", "-1003132769250"))
 
 
 # Superban Video (Catbox.moe link)
