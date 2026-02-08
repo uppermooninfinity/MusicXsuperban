@@ -53,14 +53,14 @@
         "required": true
     },
     "YOUTUBE_API_KEY": {
-    "description": "YouTube Data API v3 key from Google Cloud Console",
-    "value": "",
-    "required": false
+        "description": "YouTube Data API v3 key from Google Cloud Console",
+        "value": "",
+        "required": false
     },
     "UPSTREAM_REPO": {
-    "description": "GitHub repository URL used for upstream auto updates (fork source repo)",
-    "value": "https://github.com/uppermooninfinity/MusicXsuperban",
-    "required": false
+        "description": "GitHub repository URL used for upstream auto updates (fork source repo)",
+        "value": "https://github.com/uppermooninfinity/MusicXsuperban",
+        "required": false
     },
     },
     "HEROKU_API_KEY": {
