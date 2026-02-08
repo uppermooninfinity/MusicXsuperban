@@ -40,7 +40,7 @@ async def start_pm(client, message: Message, _):
         # HELP
         if name.startswith("help"):
             await message.reply_sticker(
-                "CAACAgUAAxkBAAEQPYppZ5NUzyEuz9krlTBI7WJxE4l9HgACxggAAtL9OVfNmn5c5Qtt7DgE"
+                "CAACAgUAAxkBAAEQdPBpiG-BQdDoFQNCmKSqFa7eCqFAZgAC7h0AAgr3QFSqWRefc84mqzoE"
             )
             return await message.reply_video(
     video=config.START_VIDEO_URL,
