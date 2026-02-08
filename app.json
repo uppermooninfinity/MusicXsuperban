@@ -42,19 +42,27 @@
         "value": "",
         "required": true
     },
-
     "SUPERBAN_CHAT_ID": {
         "description": "Chat ID where global/super bans are managed.",
         "value": "-1003228624224",
         "required": false
     },
-
     "LOGGER_ID": {
         "description": "Technical logs group ID (bot must be admin).",
         "value": "-1003228624224",
         "required": true
     },
-
+    "YOUTUBE_API_KEY": {
+    "description": "YouTube Data API v3 key from Google Cloud Console",
+    "value": "",
+    "required": false
+    },
+    "UPSTREAM_REPO": {
+    "description": "GitHub repository URL used for upstream auto updates (fork source repo)",
+    "value": "https://github.com/uppermooninfinity/MusicXsuperban",
+    "required": false
+    },
+    },
     "HEROKU_API_KEY": {
         "description": "Your Heroku account's API key",
         "value": "",
