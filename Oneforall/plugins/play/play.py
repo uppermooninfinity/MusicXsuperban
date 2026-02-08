@@ -392,6 +392,7 @@ async def play_commnd(
                 photo=img,
                 caption=cap,
                 reply_markup=InlineKeyboardMarkup(buttons),
+                has_spoiler=true,
             )
             return await play_logs(message, streamtype=f"Playlist : {plist_type}")
         else:
@@ -428,6 +429,7 @@ async def play_commnd(
                     photo=img,
                     caption=cap,
                     reply_markup=InlineKeyboardMarkup(buttons),
+                    has_spoiler=true,
                 )
                 return await play_logs(message, streamtype=f"URL Searched Inline")
 
