@@ -20,7 +20,7 @@ async def delete_message_after_delay(message: Message, delay: int):
     await asyncio.sleep(delay)
     await message.delete()
 
-@Client.on_message(filters.command("vcstart", prefixes=["."]) & filters.me)
+@Client.on_message(filters.command("vcstart", prefixes=["/"]) & filters.me)
 async def startvc(client: Client, message: Message):
     call_name = message.text.split(maxsplit=1)[1] if len(message.command) > 1 else "VC"
     original_message = message.reply_to_message or message
